@@ -1,0 +1,40 @@
+services:
+  # База даних PostgreSQL
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # Логін, пароль і назву бази беремо з файлу .env 
+    env_file: .env
+    volumes:
+      # Іменований том — дані зберігаються після docker compose down
+      - pgdata:/var/lib/postgresql/data
+      # Скрипт ініціалізації — виконується лише при першому запуску
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # Порт 5432 доступний лише іншим контейнерам, а не з комп'ютера
+    expose:
+      - "5432"
+    # Перевірка, що база вже готова приймати з'єднання
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Сервер Express
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Усередині мережі Docker база доступна за іменем сервісу
+      DB_HOST: db
+    # Публікуємо порт назовні: http://localhost:8080
+    ports:
+      - "8080:8080"
+    # Сервер стартує лише тоді, коли база пройшла healthcheck
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
