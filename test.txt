@@ -1,0 +1,118 @@
+# Команди curl, згенеровані Swagger UI (Try it out -> Execute)
+
+# GET /api/health
+# 200 — база доступна; 503 — після docker compose stop db
+curl -X 'GET' \
+  'http://localhost:8080/api/health' \
+  -H 'accept: */*'
+
+# POST /api/links
+# 201 — код генерує сервер
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://lnu.edu.ua/"
+}'
+
+# 201 — власний alias; 409 — той самий запит повторно
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://expressjs.com/",
+  "alias": "express-docs"
+}'
+
+# 400 — передано не адресу
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "hello world"
+}'
+
+# 400 — alias не відповідає формату
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://lnu.edu.ua/",
+  "alias": "a b"
+}'
+
+# 400 — спроба передати поле, яке формує сервер
+curl -X 'POST' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://lnu.edu.ua/",
+  "clicks": 1000
+}'
+
+# GET /api/links
+# 200
+curl -X 'GET' \
+  'http://localhost:8080/api/links' \
+  -H 'accept: */*'
+
+# GET /api/links/{code}
+# 200
+curl -X 'GET' \
+  'http://localhost:8080/api/links/express-docs' \
+  -H 'accept: */*'
+
+# 404
+curl -X 'GET' \
+  'http://localhost:8080/api/links/nope404' \
+  -H 'accept: */*'
+
+# PATCH /api/links/{code}
+# 200
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/express-docs' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://expressjs.com/en/5x/api.html"
+}'
+
+# 400
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/express-docs' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "ftp://files.example.com"
+}'
+
+# 404
+curl -X 'PATCH' \
+  'http://localhost:8080/api/links/nope404' \
+  -H 'accept: */*' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "url": "https://lnu.edu.ua/"
+}'
+
+# GET /{code} 
+# 302 (у Swagger UI — "Failed to fetch" через CORS; перевірено curl -i)
+curl -X 'GET' \
+  'http://localhost:8080/express-docs' \
+  -H 'accept: */*'
+
+# 404
+curl -X 'GET' \
+  'http://localhost:8080/nope404' \
+  -H 'accept: */*'
+
+# DELETE /api/links/{code}
+# 204; 404 — той самий запит повторно
+curl -X 'DELETE' \
+  'http://localhost:8080/api/links/dKPufK' \
+  -H 'accept: */*'
