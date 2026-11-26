@@ -5,7 +5,8 @@ const express = require('express');
 
 const healthRouter = require('./routes/health');
 const linksRouter = require('./routes/links');
-const { errorHandler } = require('./errors');
+const redirectRouter = require('./routes/redirect');
+const { HttpError, errorHandler } = require('./errors');
 
 const app = express();
 
@@ -16,6 +17,15 @@ app.use(express.json());
 // 2. API
 app.use('/api/health', healthRouter);
 app.use('/api/links', linksRouter);
+
+// Перехід за коротким посиланням — ОСТАННІМ серед маршрутів,
+// щоб /api не сприймався як короткий код
+app.use('/', redirectRouter);
+
+// Якщо жоден маршрут не підійшов — 404 у нашому форматі
+app.use((req, res, next) => {
+  next(new HttpError(404, `Шлях ${req.method} ${req.path} не існує`));
+});
 
 // Обробник помилок — завжди в самому кінці
 app.use(errorHandler);
