@@ -1,0 +1,21 @@
+{
+  "name": "webback_lab6",
+  "version": "1.0.0",
+  "description": "",
+  "main": "scr/server.js",
+  "scripts": {
+    "start": "node scr/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrybyk9/webback_lab6.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/hrybyk9/webback_lab6/issues"
+  },
+  "homepage": "https://github.com/hrybyk9/webback_lab6#readme"
+}
