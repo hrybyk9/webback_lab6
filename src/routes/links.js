@@ -84,4 +84,30 @@ router.post('/', async (req, res) => {
   res.status(201).location(`/api/links/${row.code}`).json(toLink(row));
 });
 
+// PATCH /api/links/:code — змінити оригінальну адресу
+router.patch('/:code', async (req, res) => {
+  checkAllowedFields(req.body, ['url']);
+  const url = validateUrl(req.body.url);
+
+  const row = await db.oneOrNone(
+    'UPDATE links SET url = $1 WHERE code = $2 RETURNING *',
+    [url, req.params.code]
+  );
+  if (!row) {
+    throw new HttpError(404, `Посилання з кодом "${req.params.code}" не знайдено`);
+  }
+  res.status(200).json(toLink(row));
+});
+
+// DELETE /api/links/:code — видалити посилання
+router.delete('/:code', async (req, res) => {
+  // result відповідає на питання "скільки рядків видалено"
+  const result = await db.result('DELETE FROM links WHERE code = $1', [req.params.code]);
+  if (result.rowCount === 0) {
+    throw new HttpError(404, `Посилання з кодом "${req.params.code}" не знайдено`);
+  }
+  // 204 No Content — успіх без тіла відповіді
+  res.status(204).end();
+});
+
 module.exports = router;
