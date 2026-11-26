@@ -1,0 +1,314 @@
+openapi: 3.0.3
+
+info:
+  title: URL Shortener API
+  version: 1.0.0
+  description: |
+    Сервіс скорочення посилань (лабораторна робота № 6).
+
+    * Керування посиланнями — ресурс `/api/links`.
+    * Перехід за коротким посиланням — `GET /{code}` у корені сайту (поза `/api`),
+      щоб коротка адреса була максимально короткою: `http://localhost:8080/aB3xK9`.
+    * Шляхи `/api` і `/docs` зарезервовані й не можуть бути кодами.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Локальний запуск через docker compose
+
+# Сервіс навчальний і не має авторизації — явно вказуємо, що вона не потрібна
+security: []
+
+tags:
+  - name: Links
+    description: Керування короткими посиланнями
+  - name: Redirect
+    description: Перехід за коротким посиланням
+  - name: System
+    description: Службові операції
+
+paths:
+  /api/health:
+    get:
+      tags: [System]
+      summary: Перевірка стану сервера та бази даних
+      operationId: getHealth
+      responses:
+        '200':
+          description: Сервер працює, база даних доступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: ok
+                database: ok
+        '503':
+          description: Сервер працює, але база даних недоступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: error
+                database: unavailable
+
+  /api/links:
+    get:
+      tags: [Links]
+      summary: Отримати перелік усіх посилань
+      description: Посилання впорядковані від найновішого до найстарішого.
+      operationId: listLinks
+      responses:
+        '200':
+          description: Перелік посилань (може бути порожнім)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Link'
+    post:
+      tags: [Links]
+      summary: Створити коротке посилання
+      description: |
+        Якщо `alias` не передано, сервер сам генерує код із 6 символів
+        (латинські літери та цифри). Повторне скорочення тієї ж довгої адреси
+        створює нове, окреме посилання зі своїм лічильником.
+      operationId: createLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkCreate'
+            examples:
+              generated:
+                summary: Код генерує сервер
+                value:
+                  url: https://lnu.edu.ua/
+              withAlias:
+                summary: Власний alias
+                value:
+                  url: https://expressjs.com/
+                  alias: express-docs
+      responses:
+        '201':
+          description: Посилання створено
+          headers:
+            Location:
+              description: Адреса створеного ресурсу
+              schema:
+                type: string
+              example: /api/links/aB3xK9
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/links/{code}:
+    parameters:
+      - $ref: '#/components/parameters/Code'
+    get:
+      tags: [Links]
+      summary: Отримати інформацію про одне посилання
+      operationId: getLink
+      responses:
+        '200':
+          description: Інформація про посилання
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Links]
+      summary: Змінити оригінальну адресу посилання
+      description: |
+        Змінювати можна лише поле `url`. Код, дата створення та лічильник
+        формуються сервером, тому спроба їх передати дає 400.
+      operationId: updateLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkUpdate'
+            example:
+              url: https://www.lnu.edu.ua/en/
+      responses:
+        '200':
+          description: Посилання оновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Link'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Links]
+      summary: Видалити посилання
+      operationId: deleteLink
+      responses:
+        '204':
+          description: Посилання видалено (тіло відповіді порожнє)
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /{code}:
+    parameters:
+      - $ref: '#/components/parameters/Code'
+    get:
+      tags: [Redirect]
+      summary: Перейти за коротким посиланням
+      description: |
+        Повертає 302 із заголовком `Location`, браузер автоматично переходить
+        на оригінальну адресу. Код 302 обрано, щоб браузер не кешував
+        перенаправлення і кожен перехід доходив до сервера та рахувався.
+      operationId: followLink
+      responses:
+        '302':
+          description: Перенаправлення на оригінальну адресу
+          headers:
+            Location:
+              description: Оригінальна адреса
+              schema:
+                type: string
+                format: uri
+              example: https://lnu.edu.ua/
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    Code:
+      name: code
+      in: path
+      required: true
+      description: Короткий код посилання
+      schema:
+        type: string
+        example: aB3xK9
+
+  schemas:
+    Link:
+      type: object
+      description: Коротке посилання (усі поля формує сервер, крім url)
+      required: [code, url, shortUrl, clicks, createdAt]
+      properties:
+        code:
+          type: string
+          example: aB3xK9
+        url:
+          type: string
+          format: uri
+          example: https://lnu.edu.ua/
+        shortUrl:
+          type: string
+          format: uri
+          example: http://localhost:8080/aB3xK9
+        clicks:
+          type: integer
+          minimum: 0
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-23T10:15:00.000Z'
+
+    LinkCreate:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Абсолютна адреса зі схемою http або https
+          example: https://lnu.edu.ua/
+        alias:
+          type: string
+          minLength: 3
+          maxLength: 30
+          pattern: '^[A-Za-z0-9_-]{3,30}$'
+          description: |
+            Власний короткий код (необов'язково). Латинські літери, цифри, `_` та `-`,
+            від 3 до 30 символів. Слова `api` і `docs` (у будь-якому регістрі) заборонені.
+          example: express-docs
+
+    LinkUpdate:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Нова абсолютна адреса зі схемою http або https
+          example: https://www.lnu.edu.ua/en/
+
+    Health:
+      type: object
+      required: [status, database]
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
+        database:
+          type: string
+          enum: [ok, unavailable]
+
+    Error:
+      type: object
+      description: Однаковий формат помилки для всіх операцій
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Машинно-читабельний тип помилки
+          enum: [BAD_REQUEST, NOT_FOUND, CONFLICT]
+          example: BAD_REQUEST
+        message:
+          type: string
+          description: Пояснення для людини
+          example: Поле url має бути адресою http або https
+
+  responses:
+    BadRequest:
+      description: Некоректний запит (невалідний JSON, адреса, alias або зайві поля)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: BAD_REQUEST
+            message: Поле url має бути адресою http або https
+    NotFound:
+      description: Посилання з таким кодом не існує
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: NOT_FOUND
+            message: Посилання з кодом "abc123" не знайдено
+    Conflict:
+      description: Запропонований alias уже зайнятий
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: CONFLICT
+            message: Код "express-docs" уже зайнятий
