@@ -4,6 +4,7 @@
 const express = require('express');
 
 const healthRouter = require('./routes/health');
+const linksRouter = require('./routes/links');
 const { errorHandler } = require('./errors');
 
 const app = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // 2. API
 app.use('/api/health', healthRouter);
+app.use('/api/links', linksRouter);
 
 // Обробник помилок — завжди в самому кінці
 app.use(errorHandler);
